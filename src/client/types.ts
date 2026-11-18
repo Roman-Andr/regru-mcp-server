@@ -2,6 +2,8 @@ export interface RegruConfig {
   username: string;
   password?: string;
   privateKey?: string;
+  /** PEM client certificate for TLS auth (required by REG.RU with sig auth) */
+  clientCert?: string;
   baseUrl?: string;
 }
 

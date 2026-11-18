@@ -3,6 +3,48 @@ import { buildAuthParams, signRequestParams, validateConfig } from './auth.js';
 import { normalizeDomain } from './domain.js';
 import { buildFormData, finalizeRequestParams, mergeRequestParams } from './requestParams.js';
 
+import https from 'node:https';
+
+/** POST form body over HTTPS presenting a TLS client certificate. */
+function postWithClientCert(
+  url: string,
+  body: string,
+  cert: string,
+  key: string
+): Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }> {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      url,
+      {
+        method: 'POST',
+        cert,
+        key,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+          'Content-Length': Buffer.byteLength(body),
+        },
+        timeout: 30000,
+      },
+      res => {
+        const chunks: Buffer[] = [];
+        res.on('data', c => chunks.push(c as Buffer));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8');
+          const status = res.statusCode ?? 0;
+          resolve({
+            ok: status >= 200 && status < 300,
+            status,
+            json: async () => JSON.parse(text),
+          });
+        });
+      }
+    );
+    req.on('timeout', () => req.destroy(new Error('Request timed out')));
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
 const DEFAULT_BASE_URL = 'https://api.reg.ru/api/regru2';
 
 export { normalizeDomain } from './domain.js';
@@ -137,13 +179,15 @@ export class RegruApiClient {
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-            },
-            body,
-          });
+          const response = this.config.clientCert && this.config.privateKey
+            ? await postWithClientCert(url, body, this.config.clientCert, this.config.privateKey)
+            : await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+                },
+                body,
+              });
 
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

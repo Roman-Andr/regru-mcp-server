@@ -38,6 +38,7 @@ function loadConfig(): RegruConfig {
   const username = process.env.REGRU_USERNAME;
   const password = process.env.REGRU_PASSWORD;
   const privateKey = loadPrivateKey(process.env.REGRU_PRIVATE_KEY);
+  const clientCert = loadPrivateKey(process.env.REGRU_CLIENT_CERT);
   const baseUrl = process.env.REGRU_BASE_URL || process.env.REGRU_API_BASE_URL;
 
   if (!username) {
@@ -51,6 +52,7 @@ function loadConfig(): RegruConfig {
     username,
     password,
     privateKey,
+    clientCert,
     baseUrl,
   };
 }
