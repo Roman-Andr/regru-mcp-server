@@ -369,6 +369,12 @@ export class RegruApiClient {
     period?: number,
     okIfNoMoney = false
   ): Promise<RegruApiResponse> {
+    // Paid operation: blocked unless explicitly enabled for this process.
+    if (process.env.REGRU_ALLOW_BILLING !== '1') {
+      throw new Error(
+        'service/renew is a paid operation and is disabled. Set REGRU_ALLOW_BILLING=1 to enable.'
+      );
+    }
     return this.request(
       'service',
       'renew',
